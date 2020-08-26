@@ -1,0 +1,823 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>flask_babel &#8212; Flask-Babel 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../_static/flask.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+  <script>DOCUMENTATION_OPTIONS.URL_ROOT = '../';</script>
+   
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Flask-Babel 1.0.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">flask_babel</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flask_babel</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    flaskext.babel</span>
+<span class="sd">    ~~~~~~~~~~~~~~</span>
+
+<span class="sd">    Implements i18n/l10n support for Flask applications based on Babel.</span>
+
+<span class="sd">    :copyright: (c) 2013 by Armin Ronacher, Daniel Neuhäuser.</span>
+<span class="sd">    :license: BSD, see LICENSE for more details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">request</span>
+<span class="kn">from</span> <span class="nn">flask.ctx</span> <span class="kn">import</span> <span class="n">has_request_context</span>
+<span class="kn">from</span> <span class="nn">flask.helpers</span> <span class="kn">import</span> <span class="n">locked_cached_property</span>
+<span class="kn">from</span> <span class="nn">babel</span> <span class="kn">import</span> <span class="n">dates</span><span class="p">,</span> <span class="n">numbers</span><span class="p">,</span> <span class="n">support</span><span class="p">,</span> <span class="n">Locale</span>
+<span class="kn">from</span> <span class="nn">pytz</span> <span class="kn">import</span> <span class="n">timezone</span><span class="p">,</span> <span class="n">UTC</span>
+<span class="kn">from</span> <span class="nn">werkzeug.datastructures</span> <span class="kn">import</span> <span class="n">ImmutableDict</span>
+
+<span class="kn">from</span> <span class="nn">flask_babel._compat</span> <span class="kn">import</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">flask_babel.speaklater</span> <span class="kn">import</span> <span class="n">LazyString</span>
+
+
+<div class="viewcode-block" id="Babel"><a class="viewcode-back" href="../index.html#flask_babel.Babel">[docs]</a><span class="k">class</span> <span class="nc">Babel</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Central controller class that can be used to configure how</span>
+<span class="sd">    Flask-Babel behaves.  Each application that wants to use Flask-Babel</span>
+<span class="sd">    has to create, or run :meth:`init_app` on, an instance of this class</span>
+<span class="sd">    after the configuration was initialized.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">default_date_formats</span> <span class="o">=</span> <span class="n">ImmutableDict</span><span class="p">({</span>
+        <span class="s1">&#39;time&#39;</span><span class="p">:</span>             <span class="s1">&#39;medium&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;date&#39;</span><span class="p">:</span>             <span class="s1">&#39;medium&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;datetime&#39;</span><span class="p">:</span>         <span class="s1">&#39;medium&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;time.short&#39;</span><span class="p">:</span>       <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;time.medium&#39;</span><span class="p">:</span>      <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;time.full&#39;</span><span class="p">:</span>        <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;time.long&#39;</span><span class="p">:</span>        <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;date.short&#39;</span><span class="p">:</span>       <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;date.medium&#39;</span><span class="p">:</span>      <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;date.full&#39;</span><span class="p">:</span>        <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;date.long&#39;</span><span class="p">:</span>        <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;datetime.short&#39;</span><span class="p">:</span>   <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;datetime.medium&#39;</span><span class="p">:</span>  <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;datetime.full&#39;</span><span class="p">:</span>    <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;datetime.long&#39;</span><span class="p">:</span>    <span class="kc">None</span><span class="p">,</span>
+    <span class="p">})</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_locale</span><span class="o">=</span><span class="s1">&#39;en&#39;</span><span class="p">,</span> <span class="n">default_timezone</span><span class="o">=</span><span class="s1">&#39;UTC&#39;</span><span class="p">,</span>
+                 <span class="n">default_domain</span><span class="o">=</span><span class="s1">&#39;messages&#39;</span><span class="p">,</span> <span class="n">date_formats</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">configure_jinja</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_locale</span> <span class="o">=</span> <span class="n">default_locale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_timezone</span> <span class="o">=</span> <span class="n">default_timezone</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_domain</span> <span class="o">=</span> <span class="n">default_domain</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_date_formats</span> <span class="o">=</span> <span class="n">date_formats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_configure_jinja</span> <span class="o">=</span> <span class="n">configure_jinja</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">locale_selector_func</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timezone_selector_func</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">app</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Babel.init_app"><a class="viewcode-back" href="../index.html#flask_babel.Babel.init_app">[docs]</a>    <span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set up this instance for use with *app*, if no app was passed to</span>
+<span class="sd">        the constructor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">babel_instance</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="s1">&#39;extensions&#39;</span><span class="p">):</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">extensions</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s1">&#39;babel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;BABEL_DEFAULT_LOCALE&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_locale</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;BABEL_DEFAULT_TIMEZONE&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_timezone</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;BABEL_DOMAIN&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_domain</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_date_formats</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_date_formats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_date_formats</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1">#: a mapping of Babel datetime format strings that can be modified</span>
+        <span class="c1">#: to change the defaults.  If you invoke :func:`format_datetime`</span>
+        <span class="c1">#: and do not provide any format string Flask-Babel will do the</span>
+        <span class="c1">#: following things:</span>
+        <span class="c1">#:</span>
+        <span class="c1">#: 1.   look up ``date_formats[&#39;datetime&#39;]``.  By default ``&#39;medium&#39;``</span>
+        <span class="c1">#:      is returned to enforce medium length datetime formats.</span>
+        <span class="c1">#: 2.   ``date_formats[&#39;datetime.medium&#39;] (if ``&#39;medium&#39;`` was</span>
+        <span class="c1">#:      returned in step one) is looked up.  If the return value</span>
+        <span class="c1">#:      is anything but `None` this is used as new format string.</span>
+        <span class="c1">#:      otherwise the default for that language is used.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">date_formats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_date_formats</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configure_jinja</span><span class="p">:</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">jinja_env</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="n">datetimeformat</span><span class="o">=</span><span class="n">format_datetime</span><span class="p">,</span>
+                <span class="n">dateformat</span><span class="o">=</span><span class="n">format_date</span><span class="p">,</span>
+                <span class="n">timeformat</span><span class="o">=</span><span class="n">format_time</span><span class="p">,</span>
+                <span class="n">timedeltaformat</span><span class="o">=</span><span class="n">format_timedelta</span><span class="p">,</span>
+
+                <span class="n">numberformat</span><span class="o">=</span><span class="n">format_number</span><span class="p">,</span>
+                <span class="n">decimalformat</span><span class="o">=</span><span class="n">format_decimal</span><span class="p">,</span>
+                <span class="n">currencyformat</span><span class="o">=</span><span class="n">format_currency</span><span class="p">,</span>
+                <span class="n">percentformat</span><span class="o">=</span><span class="n">format_percent</span><span class="p">,</span>
+                <span class="n">scientificformat</span><span class="o">=</span><span class="n">format_scientific</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">jinja_env</span><span class="o">.</span><span class="n">add_extension</span><span class="p">(</span><span class="s1">&#39;jinja2.ext.i18n&#39;</span><span class="p">)</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">jinja_env</span><span class="o">.</span><span class="n">install_gettext_callables</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">get_translations</span><span class="p">()</span><span class="o">.</span><span class="n">ugettext</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+                <span class="k">lambda</span> <span class="n">s</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="n">get_translations</span><span class="p">()</span><span class="o">.</span><span class="n">ungettext</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span>
+                <span class="n">newstyle</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Babel.localeselector"><a class="viewcode-back" href="../index.html#flask_babel.Babel.localeselector">[docs]</a>    <span class="k">def</span> <span class="nf">localeselector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Registers a callback function for locale selection.  The default</span>
+<span class="sd">        behaves as if a function was registered that returns `None` all the</span>
+<span class="sd">        time.  If `None` is returned, the locale falls back to the one from</span>
+<span class="sd">        the configuration.</span>
+
+<span class="sd">        This has to return the locale as string (eg: ``&#39;de_AT&#39;``, ``&#39;en_US&#39;``)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">locale_selector_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> \
+            <span class="s1">&#39;a localeselector function is already registered&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">locale_selector_func</span> <span class="o">=</span> <span class="n">f</span>
+        <span class="k">return</span> <span class="n">f</span></div>
+
+<div class="viewcode-block" id="Babel.timezoneselector"><a class="viewcode-back" href="../index.html#flask_babel.Babel.timezoneselector">[docs]</a>    <span class="k">def</span> <span class="nf">timezoneselector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Registers a callback function for timezone selection.  The default</span>
+<span class="sd">        behaves as if a function was registered that returns `None` all the</span>
+<span class="sd">        time.  If `None` is returned, the timezone falls back to the one from</span>
+<span class="sd">        the configuration.</span>
+
+<span class="sd">        This has to return the timezone as string (eg: ``&#39;Europe/Vienna&#39;``)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">timezone_selector_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> \
+            <span class="s1">&#39;a timezoneselector function is already registered&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timezone_selector_func</span> <span class="o">=</span> <span class="n">f</span>
+        <span class="k">return</span> <span class="n">f</span></div>
+
+<div class="viewcode-block" id="Babel.list_translations"><a class="viewcode-back" href="../index.html#flask_babel.Babel.list_translations">[docs]</a>    <span class="k">def</span> <span class="nf">list_translations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a list of all the locales translations exist for.  The</span>
+<span class="sd">        list returned will be filled with actual locale objects and not just</span>
+<span class="sd">        strings.</span>
+
+<span class="sd">        .. versionadded:: 0.6</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">dirname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">translation_directories</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">dirname</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">dirname</span><span class="p">):</span>
+                <span class="n">locale_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;LC_MESSAGES&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">locale_dir</span><span class="p">):</span>
+                    <span class="k">continue</span>
+
+                <span class="k">if</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.mo&#39;</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">locale_dir</span><span class="p">)):</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Locale</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">folder</span><span class="p">))</span>
+
+        <span class="c1"># If not other translations are found, add the default locale.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Locale</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_locale</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_locale</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The default locale from the configuration as instance of a</span>
+<span class="sd">        `babel.Locale` object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Locale</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;BABEL_DEFAULT_LOCALE&#39;</span><span class="p">])</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_timezone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The default timezone from the configuration as instance of a</span>
+<span class="sd">        `pytz.timezone` object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">timezone</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;BABEL_DEFAULT_TIMEZONE&#39;</span><span class="p">])</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">domain</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The message domain for the translations as a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;BABEL_DOMAIN&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Babel.domain_instance"><a class="viewcode-back" href="../index.html#flask_babel.Babel.domain_instance">[docs]</a>    <span class="nd">@locked_cached_property</span>
+    <span class="k">def</span> <span class="nf">domain_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The message domain for the translations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Domain</span><span class="p">(</span><span class="n">domain</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;BABEL_DOMAIN&#39;</span><span class="p">])</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">translation_directories</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">directories</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s1">&#39;BABEL_TRANSLATION_DIRECTORIES&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;translations&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">directories</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">path</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_translations"><a class="viewcode-back" href="../index.html#flask_babel.get_translations">[docs]</a><span class="k">def</span> <span class="nf">get_translations</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the correct gettext translations that should be used for</span>
+<span class="sd">    this request.  This will never fail and return a dummy translation</span>
+<span class="sd">    object if used outside of the request or if a translation cannot be</span>
+<span class="sd">    found.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">get_domain</span><span class="p">()</span><span class="o">.</span><span class="n">get_translations</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="get_locale"><a class="viewcode-back" href="../index.html#flask_babel.get_locale">[docs]</a><span class="k">def</span> <span class="nf">get_locale</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the locale that should be used for this request as</span>
+<span class="sd">    `babel.Locale` object.  This returns `None` if used outside of</span>
+<span class="sd">    a request.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">ctx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s1">&#39;babel_locale&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">locale</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">babel</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s1">&#39;babel&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">babel</span><span class="o">.</span><span class="n">locale_selector_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">locale</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">default_locale</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">locale_selector_func</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">locale</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">default_locale</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">locale</span> <span class="o">=</span> <span class="n">Locale</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">babel_locale</span> <span class="o">=</span> <span class="n">locale</span>
+    <span class="k">return</span> <span class="n">locale</span></div>
+
+
+<div class="viewcode-block" id="get_timezone"><a class="viewcode-back" href="../index.html#flask_babel.get_timezone">[docs]</a><span class="k">def</span> <span class="nf">get_timezone</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the timezone that should be used for this request as</span>
+<span class="sd">    `pytz.timezone` object.  This returns `None` if used outside of</span>
+<span class="sd">    a request.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+    <span class="n">tzinfo</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s1">&#39;babel_tzinfo&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">babel</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s1">&#39;babel&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">babel</span><span class="o">.</span><span class="n">timezone_selector_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">default_timezone</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">timezone_selector_func</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">default_timezone</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                    <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">timezone</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">rv</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">babel_tzinfo</span> <span class="o">=</span> <span class="n">tzinfo</span>
+    <span class="k">return</span> <span class="n">tzinfo</span></div>
+
+
+<div class="viewcode-block" id="refresh"><a class="viewcode-back" href="../index.html#flask_babel.refresh">[docs]</a><span class="k">def</span> <span class="nf">refresh</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Refreshes the cached timezones and locale information.  This can</span>
+<span class="sd">    be used to switch a translation between a request and if you want</span>
+<span class="sd">    the changes to take place immediately, not just with the next request::</span>
+
+<span class="sd">        user.timezone = request.form[&#39;timezone&#39;]</span>
+<span class="sd">        user.locale = request.form[&#39;locale&#39;]</span>
+<span class="sd">        refresh()</span>
+<span class="sd">        flash(gettext(&#39;Language was changed&#39;))</span>
+
+<span class="sd">    Without that refresh, the :func:`~flask.flash` function would probably</span>
+<span class="sd">    return English text and a now German page.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="s1">&#39;babel_locale&#39;</span><span class="p">,</span> <span class="s1">&#39;babel_tzinfo&#39;</span><span class="p">,</span> <span class="s1">&#39;babel_translations&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+            <span class="nb">delattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s1">&#39;forced_babel_locale&#39;</span><span class="p">):</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">babel_locale</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">forced_babel_locale</span></div>
+
+
+<div class="viewcode-block" id="force_locale"><a class="viewcode-back" href="../index.html#flask_babel.force_locale">[docs]</a><span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">force_locale</span><span class="p">(</span><span class="n">locale</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Temporarily overrides the currently selected locale.</span>
+
+<span class="sd">    Sometimes it is useful to switch the current locale to different one, do</span>
+<span class="sd">    some tasks and then revert back to the original one. For example, if the</span>
+<span class="sd">    user uses German on the web site, but you want to send them an email in</span>
+<span class="sd">    English, you can use this function as a context manager::</span>
+
+<span class="sd">        with force_locale(&#39;en_US&#39;):</span>
+<span class="sd">            send_email(gettext(&#39;Hello!&#39;), ...)</span>
+
+<span class="sd">    :param locale: The locale to temporary switch to (ex: &#39;en_US&#39;).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">ctx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">yield</span>
+        <span class="k">return</span>
+
+    <span class="n">orig_attrs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;babel_translations&#39;</span><span class="p">,</span> <span class="s1">&#39;babel_locale&#39;</span><span class="p">):</span>
+        <span class="n">orig_attrs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">babel_locale</span> <span class="o">=</span> <span class="n">Locale</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">locale</span><span class="p">)</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">forced_babel_locale</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">babel_locale</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">babel_translations</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s1">&#39;forced_babel_locale&#39;</span><span class="p">):</span>
+            <span class="k">del</span> <span class="n">ctx</span><span class="o">.</span><span class="n">forced_babel_locale</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">orig_attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_get_format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">format</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A small helper for the datetime formatting functions.  Looks up</span>
+<span class="sd">    format defaults for different kinds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">babel</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s1">&#39;babel&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">format</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">date_formats</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;short&#39;</span><span class="p">,</span> <span class="s1">&#39;medium&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;long&#39;</span><span class="p">):</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">date_formats</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">format</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">format</span> <span class="o">=</span> <span class="n">rv</span>
+    <span class="k">return</span> <span class="nb">format</span>
+
+
+<div class="viewcode-block" id="to_user_timezone"><a class="viewcode-back" href="../index.html#flask_babel.to_user_timezone">[docs]</a><span class="k">def</span> <span class="nf">to_user_timezone</span><span class="p">(</span><span class="n">datetime</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a datetime object to the user&#39;s timezone.  This automatically</span>
+<span class="sd">    happens on all date formatting unless rebasing is disabled.  If you need</span>
+<span class="sd">    to convert a :class:`datetime.datetime` object at any time to the user&#39;s</span>
+<span class="sd">    timezone (as returned by :func:`get_timezone` this function can be used).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">UTC</span><span class="p">)</span>
+    <span class="n">tzinfo</span> <span class="o">=</span> <span class="n">get_timezone</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">tzinfo</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">tzinfo</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="to_utc"><a class="viewcode-back" href="../index.html#flask_babel.to_utc">[docs]</a><span class="k">def</span> <span class="nf">to_utc</span><span class="p">(</span><span class="n">datetime</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a datetime object to UTC and drop tzinfo.  This is the</span>
+<span class="sd">    opposite operation to :func:`to_user_timezone`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">datetime</span> <span class="o">=</span> <span class="n">get_timezone</span><span class="p">()</span><span class="o">.</span><span class="n">localize</span><span class="p">(</span><span class="n">datetime</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">UTC</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_datetime"><a class="viewcode-back" href="../index.html#flask_babel.format_datetime">[docs]</a><span class="k">def</span> <span class="nf">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rebase</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a date formatted according to the given pattern.  If no</span>
+<span class="sd">    :class:`~datetime.datetime` object is passed, the current time is</span>
+<span class="sd">    assumed.  By default rebasing happens which causes the object to</span>
+<span class="sd">    be converted to the users&#39;s timezone (as returned by</span>
+<span class="sd">    :func:`to_user_timezone`).  This function formats both date and</span>
+<span class="sd">    time.</span>
+
+<span class="sd">    The format parameter can either be ``&#39;short&#39;``, ``&#39;medium&#39;``,</span>
+<span class="sd">    ``&#39;long&#39;`` or ``&#39;full&#39;`` (in which cause the language&#39;s default for</span>
+<span class="sd">    that setting is used, or the default from the :attr:`Babel.date_formats`</span>
+<span class="sd">    mapping is used) or a format string as documented by Babel.</span>
+
+<span class="sd">    This function is also available in the template context as filter</span>
+<span class="sd">    named `datetimeformat`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">format</span> <span class="o">=</span> <span class="n">_get_format</span><span class="p">(</span><span class="s1">&#39;datetime&#39;</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_date_format</span><span class="p">(</span><span class="n">dates</span><span class="o">.</span><span class="n">format_datetime</span><span class="p">,</span> <span class="n">datetime</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">rebase</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_date"><a class="viewcode-back" href="../index.html#flask_babel.format_date">[docs]</a><span class="k">def</span> <span class="nf">format_date</span><span class="p">(</span><span class="n">date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rebase</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a date formatted according to the given pattern.  If no</span>
+<span class="sd">    :class:`~datetime.datetime` or :class:`~datetime.date` object is passed,</span>
+<span class="sd">    the current time is assumed.  By default rebasing happens which causes</span>
+<span class="sd">    the object to be converted to the users&#39;s timezone (as returned by</span>
+<span class="sd">    :func:`to_user_timezone`).  This function only formats the date part</span>
+<span class="sd">    of a :class:`~datetime.datetime` object.</span>
+
+<span class="sd">    The format parameter can either be ``&#39;short&#39;``, ``&#39;medium&#39;``,</span>
+<span class="sd">    ``&#39;long&#39;`` or ``&#39;full&#39;`` (in which cause the language&#39;s default for</span>
+<span class="sd">    that setting is used, or the default from the :attr:`Babel.date_formats`</span>
+<span class="sd">    mapping is used) or a format string as documented by Babel.</span>
+
+<span class="sd">    This function is also available in the template context as filter</span>
+<span class="sd">    named `dateformat`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">rebase</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">to_user_timezone</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+    <span class="nb">format</span> <span class="o">=</span> <span class="n">_get_format</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_date_format</span><span class="p">(</span><span class="n">dates</span><span class="o">.</span><span class="n">format_date</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">rebase</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_time"><a class="viewcode-back" href="../index.html#flask_babel.format_time">[docs]</a><span class="k">def</span> <span class="nf">format_time</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rebase</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return a time formatted according to the given pattern.  If no</span>
+<span class="sd">    :class:`~datetime.datetime` object is passed, the current time is</span>
+<span class="sd">    assumed.  By default rebasing happens which causes the object to</span>
+<span class="sd">    be converted to the users&#39;s timezone (as returned by</span>
+<span class="sd">    :func:`to_user_timezone`).  This function formats both date and</span>
+<span class="sd">    time.</span>
+
+<span class="sd">    The format parameter can either be ``&#39;short&#39;``, ``&#39;medium&#39;``,</span>
+<span class="sd">    ``&#39;long&#39;`` or ``&#39;full&#39;`` (in which cause the language&#39;s default for</span>
+<span class="sd">    that setting is used, or the default from the :attr:`Babel.date_formats`</span>
+<span class="sd">    mapping is used) or a format string as documented by Babel.</span>
+
+<span class="sd">    This function is also available in the template context as filter</span>
+<span class="sd">    named `timeformat`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">format</span> <span class="o">=</span> <span class="n">_get_format</span><span class="p">(</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_date_format</span><span class="p">(</span><span class="n">dates</span><span class="o">.</span><span class="n">format_time</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">rebase</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_timedelta"><a class="viewcode-back" href="../index.html#flask_babel.format_timedelta">[docs]</a><span class="k">def</span> <span class="nf">format_timedelta</span><span class="p">(</span><span class="n">datetime_or_timedelta</span><span class="p">,</span> <span class="n">granularity</span><span class="o">=</span><span class="s1">&#39;second&#39;</span><span class="p">,</span>
+                     <span class="n">add_direction</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.85</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Format the elapsed time from the given date to now or the given</span>
+<span class="sd">    timedelta.</span>
+
+<span class="sd">    This function is also available in the template context as filter</span>
+<span class="sd">    named `timedeltaformat`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datetime_or_timedelta</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+        <span class="n">datetime_or_timedelta</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span> <span class="o">-</span> <span class="n">datetime_or_timedelta</span>
+    <span class="k">return</span> <span class="n">dates</span><span class="o">.</span><span class="n">format_timedelta</span><span class="p">(</span>
+        <span class="n">datetime_or_timedelta</span><span class="p">,</span>
+        <span class="n">granularity</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+        <span class="n">add_direction</span><span class="o">=</span><span class="n">add_direction</span><span class="p">,</span>
+        <span class="n">locale</span><span class="o">=</span><span class="n">get_locale</span><span class="p">()</span>
+    <span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_date_format</span><span class="p">(</span><span class="n">formatter</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">rebase</span><span class="p">,</span> <span class="o">**</span><span class="n">extra</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Internal helper that formats the date.&quot;&quot;&quot;</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+    <span class="n">extra</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">formatter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">dates</span><span class="o">.</span><span class="n">format_date</span> <span class="ow">and</span> <span class="n">rebase</span><span class="p">:</span>
+        <span class="n">extra</span><span class="p">[</span><span class="s1">&#39;tzinfo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_timezone</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">formatter</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">,</span> <span class="o">**</span><span class="n">extra</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="format_number"><a class="viewcode-back" href="../index.html#flask_babel.format_number">[docs]</a><span class="k">def</span> <span class="nf">format_number</span><span class="p">(</span><span class="n">number</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the given number formatted for the locale in request</span>
+
+<span class="sd">    :param number: the number to format</span>
+<span class="sd">    :return: the formatted number</span>
+<span class="sd">    :rtype: unicode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">numbers</span><span class="o">.</span><span class="n">format_decimal</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_decimal"><a class="viewcode-back" href="../index.html#flask_babel.format_decimal">[docs]</a><span class="k">def</span> <span class="nf">format_decimal</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the given decimal number formatted for the locale in request</span>
+
+<span class="sd">    :param number: the number to format</span>
+<span class="sd">    :param format: the format to use</span>
+<span class="sd">    :return: the formatted number</span>
+<span class="sd">    :rtype: unicode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">numbers</span><span class="o">.</span><span class="n">format_decimal</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_currency"><a class="viewcode-back" href="../index.html#flask_babel.format_currency">[docs]</a><span class="k">def</span> <span class="nf">format_currency</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="n">currency</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">currency_digits</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">format_type</span><span class="o">=</span><span class="s1">&#39;standard&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the given number formatted for the locale in request</span>
+
+<span class="sd">    :param number: the number to format</span>
+<span class="sd">    :param currency: the currency code</span>
+<span class="sd">    :param format: the format to use</span>
+<span class="sd">    :param currency_digits: use the currency’s number of decimal digits</span>
+<span class="sd">                            [default: True]</span>
+<span class="sd">    :param format_type: the currency format type to use</span>
+<span class="sd">                        [default: standard]</span>
+<span class="sd">    :return: the formatted number</span>
+<span class="sd">    :rtype: unicode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">numbers</span><span class="o">.</span><span class="n">format_currency</span><span class="p">(</span>
+        <span class="n">number</span><span class="p">,</span>
+        <span class="n">currency</span><span class="p">,</span>
+        <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span>
+        <span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">,</span>
+        <span class="n">currency_digits</span><span class="o">=</span><span class="n">currency_digits</span><span class="p">,</span>
+        <span class="n">format_type</span><span class="o">=</span><span class="n">format_type</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_percent"><a class="viewcode-back" href="../index.html#flask_babel.format_percent">[docs]</a><span class="k">def</span> <span class="nf">format_percent</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return formatted percent value for the locale in request</span>
+
+<span class="sd">    :param number: the number to format</span>
+<span class="sd">    :param format: the format to use</span>
+<span class="sd">    :return: the formatted percent number</span>
+<span class="sd">    :rtype: unicode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">numbers</span><span class="o">.</span><span class="n">format_percent</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_scientific"><a class="viewcode-back" href="../index.html#flask_babel.format_scientific">[docs]</a><span class="k">def</span> <span class="nf">format_scientific</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return value formatted in scientific notation for the locale in request</span>
+
+<span class="sd">    :param number: the number to format</span>
+<span class="sd">    :param format: the format to use</span>
+<span class="sd">    :return: the formatted percent number</span>
+<span class="sd">    :rtype: unicode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">numbers</span><span class="o">.</span><span class="n">format_scientific</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">locale</span><span class="o">=</span><span class="n">locale</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">Domain</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Localization domain. By default will use look for tranlations in Flask</span>
+<span class="sd">    application directory and &quot;messages&quot; domain - all message catalogs should</span>
+<span class="sd">    be called ``messages.mo``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">translation_directories</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s1">&#39;messages&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">translation_directories</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+            <span class="n">translation_directories</span> <span class="o">=</span> <span class="p">[</span><span class="n">translation_directories</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_translation_directories</span> <span class="o">=</span> <span class="n">translation_directories</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domain</span> <span class="o">=</span> <span class="n">domain</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;&lt;Domain(</span><span class="si">{!r}</span><span class="s1">, </span><span class="si">{!r}</span><span class="s1">)&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_translation_directories</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">translation_directories</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_translation_directories</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_translation_directories</span>
+        <span class="n">babel</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s1">&#39;babel&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">babel</span><span class="o">.</span><span class="n">translation_directories</span>
+
+    <span class="k">def</span> <span class="nf">as_default</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set this domain as default for the current request&quot;&quot;&quot;</span>
+        <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">ctx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No request context&quot;</span><span class="p">)</span>
+
+        <span class="n">ctx</span><span class="o">.</span><span class="n">babel_domain</span> <span class="o">=</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">get_translations_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns dictionary-like object for translation caching&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span>
+
+    <span class="k">def</span> <span class="nf">get_translations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">ctx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">support</span><span class="o">.</span><span class="n">NullTranslations</span><span class="p">()</span>
+
+        <span class="n">cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_translations_cache</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+        <span class="n">locale</span> <span class="o">=</span> <span class="n">get_locale</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">locale</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">translations</span> <span class="o">=</span> <span class="n">support</span><span class="o">.</span><span class="n">Translations</span><span class="p">()</span>
+
+            <span class="k">for</span> <span class="n">dirname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">translation_directories</span><span class="p">:</span>
+                <span class="n">catalog</span> <span class="o">=</span> <span class="n">support</span><span class="o">.</span><span class="n">Translations</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+                    <span class="n">dirname</span><span class="p">,</span>
+                    <span class="p">[</span><span class="n">locale</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">domain</span>
+                <span class="p">)</span>
+                <span class="n">translations</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">catalog</span><span class="p">)</span>
+                <span class="c1"># FIXME: Workaround for merge() being really, really stupid. It</span>
+                <span class="c1"># does not copy _info, plural(), or any other instance variables</span>
+                <span class="c1"># populated by GNUTranslations. We probably want to stop using</span>
+                <span class="c1"># `support.Translations.merge` entirely.</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="s1">&#39;plural&#39;</span><span class="p">):</span>
+                    <span class="n">translations</span><span class="o">.</span><span class="n">plural</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">plural</span>
+
+            <span class="n">cache</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">locale</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">]</span> <span class="o">=</span> <span class="n">translations</span>
+            <span class="k">return</span> <span class="n">translations</span>
+
+    <span class="k">def</span> <span class="nf">gettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Translates a string with the current locale and passes in the</span>
+<span class="sd">        given keyword arguments as mapping to a string formatting string.</span>
+
+<span class="sd">        ::</span>
+
+<span class="sd">            gettext(u&#39;Hello World!&#39;)</span>
+<span class="sd">            gettext(u&#39;Hello %(name)s!&#39;, name=&#39;World&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_translations</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">string</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">string</span> <span class="o">%</span> <span class="n">variables</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">ugettext</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">variables</span>
+
+    <span class="k">def</span> <span class="nf">ngettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Translates a string with the current locale and passes in the</span>
+<span class="sd">        given keyword arguments as mapping to a string formatting string.</span>
+<span class="sd">        The `num` parameter is used to dispatch between singular and various</span>
+<span class="sd">        plural forms of the message.  It is available in the format string</span>
+<span class="sd">        as ``%(num)d`` or ``%(num)s``.  The source language should be</span>
+<span class="sd">        English or a similar language which only has one plural form.</span>
+
+<span class="sd">        ::</span>
+
+<span class="sd">            ngettext(u&#39;%(num)d Apple&#39;, u&#39;%(num)d Apples&#39;, num=len(apples))</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">variables</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;num&#39;</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_translations</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">singular</span> <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">plural</span>
+            <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">variables</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">ungettext</span><span class="p">(</span><span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">variables</span>
+
+    <span class="k">def</span> <span class="nf">pgettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Like :func:`gettext` but with a context.</span>
+
+<span class="sd">        .. versionadded:: 0.7</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_translations</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">string</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">string</span> <span class="o">%</span> <span class="n">variables</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">upgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">string</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">variables</span>
+
+    <span class="k">def</span> <span class="nf">npgettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Like :func:`ngettext` but with a context.</span>
+
+<span class="sd">        .. versionadded:: 0.7</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">variables</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;num&#39;</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_translations</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">singular</span> <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">plural</span>
+            <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">variables</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">unpgettext</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">variables</span>
+
+    <span class="k">def</span> <span class="nf">lazy_gettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Like :func:`gettext` but the string returned is lazy which means</span>
+<span class="sd">        it will be translated when it is used as an actual string.</span>
+
+<span class="sd">        Example::</span>
+
+<span class="sd">            hello = lazy_gettext(u&#39;Hello World&#39;)</span>
+
+<span class="sd">            @app.route(&#39;/&#39;)</span>
+<span class="sd">            def index():</span>
+<span class="sd">                return unicode(hello)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">LazyString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gettext</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">lazy_ngettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Like :func:`ngettext` but the string returned is lazy which means</span>
+<span class="sd">        it will be translated when it is used as an actual string.</span>
+
+<span class="sd">        Example::</span>
+
+<span class="sd">            apples = lazy_ngettext(u&#39;%(num)d Apple&#39;, u&#39;%(num)d Apples&#39;, num=len(apples))</span>
+
+<span class="sd">            @app.route(&#39;/&#39;)</span>
+<span class="sd">            def index():</span>
+<span class="sd">                return unicode(apples)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">LazyString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngettext</span><span class="p">,</span> <span class="n">singular</span><span class="p">,</span> <span class="n">plural</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">lazy_pgettext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Like :func:`pgettext` but the string returned is lazy which means</span>
+<span class="sd">        it will be translated when it is used as an actual string.</span>
+
+<span class="sd">        .. versionadded:: 0.7</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">LazyString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pgettext</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="o">**</span><span class="n">variables</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_get_current_context</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">has_request_context</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">request</span>
+
+    <span class="k">if</span> <span class="n">current_app</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">current_app</span>
+
+
+<span class="k">def</span> <span class="nf">get_domain</span><span class="p">():</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">_get_current_context</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">ctx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># this will use NullTranslations</span>
+        <span class="k">return</span> <span class="n">Domain</span><span class="p">()</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ctx</span><span class="o">.</span><span class="n">babel_domain</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="n">babel</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s1">&#39;babel&#39;</span><span class="p">]</span>
+    <span class="n">ctx</span><span class="o">.</span><span class="n">babel_domain</span> <span class="o">=</span> <span class="n">babel</span><span class="o">.</span><span class="n">domain_instance</span>
+    <span class="k">return</span> <span class="n">ctx</span><span class="o">.</span><span class="n">babel_domain</span>
+
+
+<span class="c1"># Create shortcuts for the default Flask domain</span>
+<div class="viewcode-block" id="gettext"><a class="viewcode-back" href="../index.html#flask_babel.gettext">[docs]</a><span class="k">def</span> <span class="nf">gettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">get_domain</span><span class="p">()</span><span class="o">.</span><span class="n">gettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+<span class="n">_</span> <span class="o">=</span> <span class="n">gettext</span>
+
+
+<div class="viewcode-block" id="ngettext"><a class="viewcode-back" href="../index.html#flask_babel.ngettext">[docs]</a><span class="k">def</span> <span class="nf">ngettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">get_domain</span><span class="p">()</span><span class="o">.</span><span class="n">ngettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="pgettext"><a class="viewcode-back" href="../index.html#flask_babel.pgettext">[docs]</a><span class="k">def</span> <span class="nf">pgettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">get_domain</span><span class="p">()</span><span class="o">.</span><span class="n">pgettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="npgettext"><a class="viewcode-back" href="../index.html#flask_babel.npgettext">[docs]</a><span class="k">def</span> <span class="nf">npgettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">get_domain</span><span class="p">()</span><span class="o">.</span><span class="n">npgettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="lazy_gettext"><a class="viewcode-back" href="../index.html#flask_babel.lazy_gettext">[docs]</a><span class="k">def</span> <span class="nf">lazy_gettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">LazyString</span><span class="p">(</span><span class="n">gettext</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="lazy_pgettext"><a class="viewcode-back" href="../index.html#flask_babel.lazy_pgettext">[docs]</a><span class="k">def</span> <span class="nf">lazy_pgettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">LazyString</span><span class="p">(</span><span class="n">pgettext</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">lazy_ngettext</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">LazyString</span><span class="p">(</span><span class="n">ngettext</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+  <span id="sidebar-top"></span>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  
+    
+  
+<h3>Navigation</h3>
+<ul>
+  <li><a href="../index.html">Overview</a>
+    <ul>
+      <li><a href="index.html">Module code</a>
+        
+          
+          </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Armin Ronacher.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.2.1.
+    </div>
+  <script src="../_static/version_warning_offset.js"></script>
+
+  </body>
+</html>

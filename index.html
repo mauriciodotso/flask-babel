@@ -1,0 +1,764 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flask-Babel &#8212; Flask-Babel 1.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/flask.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+  <script>DOCUMENTATION_OPTIONS.URL_ROOT = './';</script>
+   
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Flask-Babel 1.0.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Flask-Babel</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-flask_babel">
+<span id="flask-babel"></span><h1>Flask-Babel<a class="headerlink" href="#module-flask_babel" title="Permalink to this headline">¶</a></h1>
+<p>Flask-Babel is an extension to <a class="reference external" href="http://flask.pocoo.org/">Flask</a> that adds i18n and l10n support to
+any Flask application with the help of <a class="reference external" href="http://babel.edgewall.org/">babel</a>, <a class="reference external" href="http://pytz.sourceforge.net/">pytz</a> and
+<a class="reference external" href="http://pypi.python.org/pypi/speaklater">speaklater</a>.  It has builtin support for date formatting with timezone
+support as well as a very simple and friendly interface to <code class="xref py py-mod docutils literal notranslate"><span class="pre">gettext</span></code>
+translations.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>Install the extension from PyPi:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install Flask-Babel
+</pre></div>
+</div>
+<p>Please note that Flask-Babel requires Jinja &gt;=2.5.  If you are using an
+older version you will have to upgrade or disable the Jinja support
+(see configuration).</p>
+</div>
+<div class="section" id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h2>
+<p>To get started all you need to do is to instantiate a <a class="reference internal" href="#flask_babel.Babel" title="flask_babel.Babel"><code class="xref py py-class docutils literal notranslate"><span class="pre">Babel</span></code></a>
+object after configuring the application:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span>
+<span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">Babel</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">from_pyfile</span><span class="p">(</span><span class="s1">&#39;mysettings.cfg&#39;</span><span class="p">)</span>
+<span class="n">babel</span> <span class="o">=</span> <span class="n">Babel</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To disable jinja support, include <code class="docutils literal notranslate"><span class="pre">configure_jinja=False</span></code> in the Babel
+constructor call.  The babel object itself can be used to configure the babel support
+further.  Babel has the following configuration values that can be used to
+change some internal defaults:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><cite>BABEL_DEFAULT_LOCALE</cite></p></td>
+<td><p>The default locale to use if no locale
+selector is registered.  This defaults
+to <code class="docutils literal notranslate"><span class="pre">'en'</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>BABEL_DEFAULT_TIMEZONE</cite></p></td>
+<td><p>The timezone to use for user facing dates.
+This defaults to <code class="docutils literal notranslate"><span class="pre">'UTC'</span></code> which also is the
+timezone your application must use internally.</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>BABEL_TRANSLATION_DIRECTORIES</cite></p></td>
+<td><p>A semi-colon (<code class="docutils literal notranslate"><span class="pre">;</span></code>) separated string of
+absolute and relative (to the app root) paths
+to translation folders. Defaults to
+<code class="docutils literal notranslate"><span class="pre">translations</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>BABEL_DOMAIN</cite></p></td>
+<td><p>The message domain used by the application.
+Defaults to <code class="docutils literal notranslate"><span class="pre">messages</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>For more complex applications you might want to have multiple applications
+for different users which is where selector functions come in handy.  The
+first time the babel extension needs the locale (language code) of the
+current user it will call a <a class="reference internal" href="#flask_babel.Babel.localeselector" title="flask_babel.Babel.localeselector"><code class="xref py py-meth docutils literal notranslate"><span class="pre">localeselector()</span></code></a> function, and
+the first time the timezone is needed it will call a
+<a class="reference internal" href="#flask_babel.Babel.timezoneselector" title="flask_babel.Babel.timezoneselector"><code class="xref py py-meth docutils literal notranslate"><span class="pre">timezoneselector()</span></code></a> function.</p>
+<p>If any of these methods return <cite>None</cite> the extension will automatically
+fall back to what’s in the config.  Furthermore for efficiency that
+function is called only once and the return value then cached.  If you
+need to switch the language between a request, you can <a class="reference internal" href="#flask_babel.refresh" title="flask_babel.refresh"><code class="xref py py-func docutils literal notranslate"><span class="pre">refresh()</span></code></a> the
+cache.</p>
+<p>Example selector functions:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">g</span><span class="p">,</span> <span class="n">request</span>
+
+<span class="nd">@babel</span><span class="o">.</span><span class="n">localeselector</span>
+<span class="k">def</span> <span class="nf">get_locale</span><span class="p">():</span>
+    <span class="c1"># if a user is logged in, use the locale from the user settings</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">user</span><span class="o">.</span><span class="n">locale</span>
+    <span class="c1"># otherwise try to guess the language from the user accept</span>
+    <span class="c1"># header the browser transmits.  We support de/fr/en in this</span>
+    <span class="c1"># example.  The best match wins.</span>
+    <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">accept_languages</span><span class="o">.</span><span class="n">best_match</span><span class="p">([</span><span class="s1">&#39;de&#39;</span><span class="p">,</span> <span class="s1">&#39;fr&#39;</span><span class="p">,</span> <span class="s1">&#39;en&#39;</span><span class="p">])</span>
+
+<span class="nd">@babel</span><span class="o">.</span><span class="n">timezoneselector</span>
+<span class="k">def</span> <span class="nf">get_timezone</span><span class="p">():</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">user</span><span class="o">.</span><span class="n">timezone</span>
+</pre></div>
+</div>
+<p>The example above assumes that the current user is stored on the
+<code class="xref py py-data docutils literal notranslate"><span class="pre">flask.g</span></code> object.</p>
+</div>
+<div class="section" id="formatting-dates">
+<h2>Formatting Dates<a class="headerlink" href="#formatting-dates" title="Permalink to this headline">¶</a></h2>
+<p>To format dates you can use the <a class="reference internal" href="#flask_babel.format_datetime" title="flask_babel.format_datetime"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_datetime()</span></code></a>,
+<a class="reference internal" href="#flask_babel.format_date" title="flask_babel.format_date"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_date()</span></code></a>, <a class="reference internal" href="#flask_babel.format_time" title="flask_babel.format_time"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_time()</span></code></a> and <a class="reference internal" href="#flask_babel.format_timedelta" title="flask_babel.format_timedelta"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_timedelta()</span></code></a>
+functions.  They all accept a <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime.datetime</span></code> (or
+<code class="xref py py-class docutils literal notranslate"><span class="pre">datetime.date</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime.time</span></code> and
+<code class="xref py py-class docutils literal notranslate"><span class="pre">datetime.timedelta</span></code>) object as first parameter and then optionally
+a format string.  The application should use naive datetime objects
+internally that use UTC as timezone.  On formatting it will automatically
+convert into the user’s timezone in case it differs from UTC.</p>
+<p>To play with the date formatting from the console, you can use the
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">test_request_context()</span></code> method:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">app</span><span class="o">.</span><span class="n">test_request_context</span><span class="p">()</span><span class="o">.</span><span class="n">push</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Here some examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">format_datetime</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1987</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>
+<span class="go">u&#39;Mar 5, 1987 5:12:00 PM&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1987</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;full&#39;</span><span class="p">)</span>
+<span class="go">u&#39;Thursday, March 5, 1987 5:12:00 PM World (GMT) Time&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1987</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;short&#39;</span><span class="p">)</span>
+<span class="go">u&#39;3/5/87 5:12 PM&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1987</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;dd mm yyy&#39;</span><span class="p">)</span>
+<span class="go">u&#39;05 12 1987&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1987</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;dd mm yyyy&#39;</span><span class="p">)</span>
+<span class="go">u&#39;05 12 1987&#39;</span>
+</pre></div>
+</div>
+<p>And again with a different language:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;BABEL_DEFAULT_LOCALE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;de&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">refresh</span><span class="p">;</span> <span class="n">refresh</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_datetime</span><span class="p">(</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1987</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;EEEE, d. MMMM yyyy H:mm&#39;</span><span class="p">)</span>
+<span class="go">u&#39;Donnerstag, 5. M\xe4rz 1987 17:12&#39;</span>
+</pre></div>
+</div>
+<p>For more format examples head over to the <a class="reference external" href="http://babel.edgewall.org/">babel</a> documentation.</p>
+</div>
+<div class="section" id="formatting-numbers">
+<h2>Formatting Numbers<a class="headerlink" href="#formatting-numbers" title="Permalink to this headline">¶</a></h2>
+<p>To format numbers you can use the <a class="reference internal" href="#flask_babel.format_number" title="flask_babel.format_number"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_number()</span></code></a>,
+<a class="reference internal" href="#flask_babel.format_decimal" title="flask_babel.format_decimal"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_decimal()</span></code></a>, <a class="reference internal" href="#flask_babel.format_currency" title="flask_babel.format_currency"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_currency()</span></code></a>, <a class="reference internal" href="#flask_babel.format_percent" title="flask_babel.format_percent"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_percent()</span></code></a> and <a class="reference internal" href="#flask_babel.format_scientific" title="flask_babel.format_scientific"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_scientific()</span></code></a>
+functions.</p>
+<p>To play with the date formatting from the console, you can use the
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">test_request_context()</span></code> method:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">app</span><span class="o">.</span><span class="n">test_request_context</span><span class="p">()</span><span class="o">.</span><span class="n">push</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Here are some examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">format_number</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_number</span><span class="p">(</span><span class="mi">1099</span><span class="p">)</span>
+<span class="go">&#39;1,099&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">format_decimal</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_decimal</span><span class="p">(</span><span class="mf">1.2346</span><span class="p">)</span>
+<span class="go">u&#39;1.235&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">format_currency</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_currency</span><span class="p">(</span><span class="mf">1099.98</span><span class="p">,</span> <span class="s1">&#39;USD&#39;</span><span class="p">)</span>
+<span class="go">&#39;$1,099.98&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">format_percent</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_percent</span><span class="p">(</span><span class="mf">0.34</span><span class="p">)</span>
+<span class="go">&#39;34%&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">format_scientific</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_scientific</span><span class="p">(</span><span class="mi">10000</span><span class="p">)</span>
+<span class="go">&#39;1E4&#39;</span>
+</pre></div>
+</div>
+<p>And again with a different language:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;BABEL_DEFAULT_LOCALE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;de&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">refresh</span><span class="p">;</span> <span class="n">refresh</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">format_number</span><span class="p">(</span><span class="mi">1099</span><span class="p">)</span>
+<span class="go">&#39;1.099&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">format_decimal</span><span class="p">(</span><span class="mf">1.2346</span><span class="p">)</span>
+<span class="go">&#39;1,235&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">format_currency</span><span class="p">(</span><span class="mf">1099.98</span><span class="p">,</span> <span class="s1">&#39;USD&#39;</span><span class="p">)</span>
+<span class="go">&#39;1.099,98\xa0$&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">format_percent</span><span class="p">(</span><span class="mf">0.34</span><span class="p">)</span>
+<span class="go">&#39;34\xa0%&#39;</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">format_scientific</span><span class="p">(</span><span class="mi">10000</span><span class="p">)</span>
+<span class="go">&#39;1E4&#39;</span>
+</pre></div>
+</div>
+<p>For more format examples head over to the <a class="reference external" href="http://babel.edgewall.org/">babel</a> documentation.</p>
+</div>
+<div class="section" id="using-translations">
+<h2>Using Translations<a class="headerlink" href="#using-translations" title="Permalink to this headline">¶</a></h2>
+<p>The other big part next to date formatting are translations.  For that,
+Flask uses <code class="xref py py-mod docutils literal notranslate"><span class="pre">gettext</span></code> together with Babel.  The idea of gettext is
+that you can mark certain strings as translatable and a tool will pick all
+those up, collect them in a separate file for you to translate.  At
+runtime the original strings (which should be English) will be replaced by
+the language you selected.</p>
+<p>There are two functions responsible for translating: <a class="reference internal" href="#flask_babel.gettext" title="flask_babel.gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">gettext()</span></code></a> and
+<a class="reference internal" href="#flask_babel.ngettext" title="flask_babel.ngettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">ngettext()</span></code></a>.  The first to translate singular strings and the second
+to translate strings that might become plural.  Here some examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">gettext</span><span class="p">,</span> <span class="n">ngettext</span>
+
+<span class="n">gettext</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;A simple string&#39;</span><span class="p">)</span>
+<span class="n">gettext</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Value: </span><span class="si">%(value)s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+<span class="n">ngettext</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">%(num)s</span><span class="s1"> Apple&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">%(num)s</span><span class="s1"> Apples&#39;</span><span class="p">,</span> <span class="n">number_of_apples</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Additionally if you want to use constant strings somewhere in your
+application and define them outside of a request, you can use a lazy
+strings.  Lazy strings will not be evaluated until they are actually used.
+To use such a lazy string, use the <a class="reference internal" href="#flask_babel.lazy_gettext" title="flask_babel.lazy_gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">lazy_gettext()</span></code></a> function:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">flask_babel</span> <span class="kn">import</span> <span class="n">lazy_gettext</span>
+
+<span class="k">class</span> <span class="nc">MyForm</span><span class="p">(</span><span class="n">formlibrary</span><span class="o">.</span><span class="n">FormBase</span><span class="p">):</span>
+    <span class="n">success_message</span> <span class="o">=</span> <span class="n">lazy_gettext</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;The form was successfully saved.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>So how does Flask-Babel find the translations?  Well first you have to
+create some.  Here is how you do it:</p>
+</div>
+<div class="section" id="translating-applications">
+<h2>Translating Applications<a class="headerlink" href="#translating-applications" title="Permalink to this headline">¶</a></h2>
+<p>First you need to mark all the strings you want to translate in your
+application with <a class="reference internal" href="#flask_babel.gettext" title="flask_babel.gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">gettext()</span></code></a> or <a class="reference internal" href="#flask_babel.ngettext" title="flask_babel.ngettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">ngettext()</span></code></a>.  After that, it’s
+time to create a <code class="docutils literal notranslate"><span class="pre">.pot</span></code> file.  A <code class="docutils literal notranslate"><span class="pre">.pot</span></code> file contains all the strings
+and is the template for a <code class="docutils literal notranslate"><span class="pre">.po</span></code> file which contains the translated
+strings.  Babel can do all that for you.</p>
+<p>First of all you have to get into the folder where you have your
+application and create a mapping file.  For typical Flask applications, this
+is what you want in there:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[python: **.py]</span>
+<span class="k">[jinja2: **/templates/**.html]</span>
+<span class="na">extensions</span><span class="o">=</span><span class="s">jinja2.ext.autoescape,jinja2.ext.with_</span>
+</pre></div>
+</div>
+<p>Save it as <code class="docutils literal notranslate"><span class="pre">babel.cfg</span></code> or something similar next to your application.
+Then it’s time to run the <cite>pybabel</cite> command that comes with Babel to
+extract your strings:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pybabel extract -F babel.cfg -o messages.pot .
+</pre></div>
+</div>
+<p>If you are using the <a class="reference internal" href="#flask_babel.lazy_gettext" title="flask_babel.lazy_gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">lazy_gettext()</span></code></a> function you should tell pybabel
+that it should also look for such function calls:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pybabel extract -F babel.cfg -k lazy_gettext -o messages.pot .
+</pre></div>
+</div>
+<p>This will use the mapping from the <code class="docutils literal notranslate"><span class="pre">babel.cfg</span></code> file and store the
+generated template in <code class="docutils literal notranslate"><span class="pre">messages.pot</span></code>.  Now we can create the first
+translation.  For example to translate to German use this command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pybabel init -i messages.pot -d translations -l de
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">translations</span></code> tells pybabel to store the translations in this
+folder.  This is where Flask-Babel will look for translations.  Put it
+next to your template folder.</p>
+<p>Now edit the <code class="docutils literal notranslate"><span class="pre">translations/de/LC_MESSAGES/messages.po</span></code> file as needed.
+Check out some gettext tutorials if you feel lost.</p>
+<p>To compile the translations for use, <code class="docutils literal notranslate"><span class="pre">pybabel</span></code> helps again:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pybabel compile -d translations
+</pre></div>
+</div>
+<p>What if the strings change?  Create a new <code class="docutils literal notranslate"><span class="pre">messages.pot</span></code> like above and
+then let <code class="docutils literal notranslate"><span class="pre">pybabel</span></code> merge the changes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pybabel update -i messages.pot -d translations
+</pre></div>
+</div>
+<p>Afterwards some strings might be marked as fuzzy (where it tried to figure
+out if a translation matched a changed key).  If you have fuzzy entries,
+make sure to check them by hand and remove the fuzzy flag before
+compiling.</p>
+</div>
+<div class="section" id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h2>
+<p>On Snow Leopard pybabel will most likely fail with an exception.  If this
+happens, check if this command outputs UTF-8:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ echo $LC_CTYPE
+UTF-8
+</pre></div>
+</div>
+<p>This is a OS X bug unfortunately.  To fix it, put the following lines into
+your <code class="docutils literal notranslate"><span class="pre">~/.profile</span></code> file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">LC_CTYPE</span><span class="o">=</span><span class="n">en_US</span><span class="o">.</span><span class="n">utf</span><span class="o">-</span><span class="mi">8</span>
+</pre></div>
+</div>
+<p>Then restart your terminal.</p>
+</div>
+<div class="section" id="api">
+<h2>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h2>
+<p>This part of the documentation documents each and every public class or
+function from Flask-Babel.</p>
+<div class="section" id="id1">
+<h3>Configuration<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<dl class="py class">
+<dt id="flask_babel.Babel">
+<em class="property">class </em><code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">Babel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">app</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">default_locale</span><span class="o">=</span><span class="default_value">'en'</span></em>, <em class="sig-param"><span class="n">default_timezone</span><span class="o">=</span><span class="default_value">'UTC'</span></em>, <em class="sig-param"><span class="n">default_domain</span><span class="o">=</span><span class="default_value">'messages'</span></em>, <em class="sig-param"><span class="n">date_formats</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">configure_jinja</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#Babel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.Babel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Central controller class that can be used to configure how
+Flask-Babel behaves.  Each application that wants to use Flask-Babel
+has to create, or run <a class="reference internal" href="#flask_babel.Babel.init_app" title="flask_babel.Babel.init_app"><code class="xref py py-meth docutils literal notranslate"><span class="pre">init_app()</span></code></a> on, an instance of this class
+after the configuration was initialized.</p>
+<dl class="py method">
+<dt id="flask_babel.Babel.default_locale">
+<em class="property">property </em><code class="sig-name descname">default_locale</code><a class="headerlink" href="#flask_babel.Babel.default_locale" title="Permalink to this definition">¶</a></dt>
+<dd><p>The default locale from the configuration as instance of a
+<cite>babel.Locale</cite> object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="flask_babel.Babel.default_timezone">
+<em class="property">property </em><code class="sig-name descname">default_timezone</code><a class="headerlink" href="#flask_babel.Babel.default_timezone" title="Permalink to this definition">¶</a></dt>
+<dd><p>The default timezone from the configuration as instance of a
+<cite>pytz.timezone</cite> object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="flask_babel.Babel.domain">
+<em class="property">property </em><code class="sig-name descname">domain</code><a class="headerlink" href="#flask_babel.Babel.domain" title="Permalink to this definition">¶</a></dt>
+<dd><p>The message domain for the translations as a string.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="flask_babel.Babel.domain_instance">
+<code class="sig-name descname">domain_instance</code><a class="reference internal" href="_modules/flask_babel.html#Babel.domain_instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.Babel.domain_instance" title="Permalink to this definition">¶</a></dt>
+<dd><p>The message domain for the translations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="flask_babel.Babel.init_app">
+<code class="sig-name descname">init_app</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">app</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#Babel.init_app"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.Babel.init_app" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set up this instance for use with <em>app</em>, if no app was passed to
+the constructor.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="flask_babel.Babel.list_translations">
+<code class="sig-name descname">list_translations</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#Babel.list_translations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.Babel.list_translations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of all the locales translations exist for.  The
+list returned will be filled with actual locale objects and not just
+strings.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">New in version 0.6.</span></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="flask_babel.Babel.localeselector">
+<code class="sig-name descname">localeselector</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">f</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#Babel.localeselector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.Babel.localeselector" title="Permalink to this definition">¶</a></dt>
+<dd><p>Registers a callback function for locale selection.  The default
+behaves as if a function was registered that returns <cite>None</cite> all the
+time.  If <cite>None</cite> is returned, the locale falls back to the one from
+the configuration.</p>
+<p>This has to return the locale as string (eg: <code class="docutils literal notranslate"><span class="pre">'de_AT'</span></code>, <code class="docutils literal notranslate"><span class="pre">'en_US'</span></code>)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="flask_babel.Babel.timezoneselector">
+<code class="sig-name descname">timezoneselector</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">f</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#Babel.timezoneselector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.Babel.timezoneselector" title="Permalink to this definition">¶</a></dt>
+<dd><p>Registers a callback function for timezone selection.  The default
+behaves as if a function was registered that returns <cite>None</cite> all the
+time.  If <cite>None</cite> is returned, the timezone falls back to the one from
+the configuration.</p>
+<p>This has to return the timezone as string (eg: <code class="docutils literal notranslate"><span class="pre">'Europe/Vienna'</span></code>)</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="context-functions">
+<h3>Context Functions<a class="headerlink" href="#context-functions" title="Permalink to this headline">¶</a></h3>
+<dl class="py function">
+<dt id="flask_babel.get_translations">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">get_translations</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#get_translations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.get_translations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the correct gettext translations that should be used for
+this request.  This will never fail and return a dummy translation
+object if used outside of the request or if a translation cannot be
+found.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.get_locale">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">get_locale</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#get_locale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.get_locale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the locale that should be used for this request as
+<cite>babel.Locale</cite> object.  This returns <cite>None</cite> if used outside of
+a request.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.get_timezone">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">get_timezone</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#get_timezone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.get_timezone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the timezone that should be used for this request as
+<cite>pytz.timezone</cite> object.  This returns <cite>None</cite> if used outside of
+a request.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="datetime-functions">
+<h3>Datetime Functions<a class="headerlink" href="#datetime-functions" title="Permalink to this headline">¶</a></h3>
+<dl class="py function">
+<dt id="flask_babel.to_user_timezone">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">to_user_timezone</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">datetime</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#to_user_timezone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.to_user_timezone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a datetime object to the user’s timezone.  This automatically
+happens on all date formatting unless rebasing is disabled.  If you need
+to convert a <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime.datetime</span></code> object at any time to the user’s
+timezone (as returned by <a class="reference internal" href="#flask_babel.get_timezone" title="flask_babel.get_timezone"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_timezone()</span></code></a> this function can be used).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.to_utc">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">to_utc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">datetime</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#to_utc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.to_utc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a datetime object to UTC and drop tzinfo.  This is the
+opposite operation to <a class="reference internal" href="#flask_babel.to_user_timezone" title="flask_babel.to_user_timezone"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_user_timezone()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_datetime">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_datetime</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">datetime</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rebase</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_datetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_datetime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a date formatted according to the given pattern.  If no
+<code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code> object is passed, the current time is
+assumed.  By default rebasing happens which causes the object to
+be converted to the users’s timezone (as returned by
+<a class="reference internal" href="#flask_babel.to_user_timezone" title="flask_babel.to_user_timezone"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_user_timezone()</span></code></a>).  This function formats both date and
+time.</p>
+<p>The format parameter can either be <code class="docutils literal notranslate"><span class="pre">'short'</span></code>, <code class="docutils literal notranslate"><span class="pre">'medium'</span></code>,
+<code class="docutils literal notranslate"><span class="pre">'long'</span></code> or <code class="docutils literal notranslate"><span class="pre">'full'</span></code> (in which cause the language’s default for
+that setting is used, or the default from the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Babel.date_formats</span></code>
+mapping is used) or a format string as documented by Babel.</p>
+<p>This function is also available in the template context as filter
+named <cite>datetimeformat</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_date">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_date</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">date</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rebase</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_date"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_date" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a date formatted according to the given pattern.  If no
+<code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">date</span></code> object is passed,
+the current time is assumed.  By default rebasing happens which causes
+the object to be converted to the users’s timezone (as returned by
+<a class="reference internal" href="#flask_babel.to_user_timezone" title="flask_babel.to_user_timezone"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_user_timezone()</span></code></a>).  This function only formats the date part
+of a <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code> object.</p>
+<p>The format parameter can either be <code class="docutils literal notranslate"><span class="pre">'short'</span></code>, <code class="docutils literal notranslate"><span class="pre">'medium'</span></code>,
+<code class="docutils literal notranslate"><span class="pre">'long'</span></code> or <code class="docutils literal notranslate"><span class="pre">'full'</span></code> (in which cause the language’s default for
+that setting is used, or the default from the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Babel.date_formats</span></code>
+mapping is used) or a format string as documented by Babel.</p>
+<p>This function is also available in the template context as filter
+named <cite>dateformat</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_time">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_time</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rebase</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a time formatted according to the given pattern.  If no
+<code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code> object is passed, the current time is
+assumed.  By default rebasing happens which causes the object to
+be converted to the users’s timezone (as returned by
+<a class="reference internal" href="#flask_babel.to_user_timezone" title="flask_babel.to_user_timezone"><code class="xref py py-func docutils literal notranslate"><span class="pre">to_user_timezone()</span></code></a>).  This function formats both date and
+time.</p>
+<p>The format parameter can either be <code class="docutils literal notranslate"><span class="pre">'short'</span></code>, <code class="docutils literal notranslate"><span class="pre">'medium'</span></code>,
+<code class="docutils literal notranslate"><span class="pre">'long'</span></code> or <code class="docutils literal notranslate"><span class="pre">'full'</span></code> (in which cause the language’s default for
+that setting is used, or the default from the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Babel.date_formats</span></code>
+mapping is used) or a format string as documented by Babel.</p>
+<p>This function is also available in the template context as filter
+named <cite>timeformat</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_timedelta">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_timedelta</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">datetime_or_timedelta</span></em>, <em class="sig-param"><span class="n">granularity</span><span class="o">=</span><span class="default_value">'second'</span></em>, <em class="sig-param"><span class="n">add_direction</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">0.85</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_timedelta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_timedelta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format the elapsed time from the given date to now or the given
+timedelta.</p>
+<p>This function is also available in the template context as filter
+named <cite>timedeltaformat</cite>.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="number-functions">
+<h3>Number Functions<a class="headerlink" href="#number-functions" title="Permalink to this headline">¶</a></h3>
+<dl class="py function">
+<dt id="flask_babel.format_number">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_number</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_number"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_number" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the given number formatted for the locale in request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>number</strong> – the number to format</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the formatted number</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>unicode</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_decimal">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_decimal</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_decimal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_decimal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the given decimal number formatted for the locale in request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>number</strong> – the number to format</p></li>
+<li><p><strong>format</strong> – the format to use</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the formatted number</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>unicode</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_currency">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_currency</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number</span></em>, <em class="sig-param"><span class="n">currency</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">currency_digits</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">format_type</span><span class="o">=</span><span class="default_value">'standard'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_currency"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_currency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the given number formatted for the locale in request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>number</strong> – the number to format</p></li>
+<li><p><strong>currency</strong> – the currency code</p></li>
+<li><p><strong>format</strong> – the format to use</p></li>
+<li><p><strong>currency_digits</strong> – use the currency’s number of decimal digits
+[default: True]</p></li>
+<li><p><strong>format_type</strong> – the currency format type to use
+[default: standard]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the formatted number</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>unicode</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_percent">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_percent</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_percent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_percent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return formatted percent value for the locale in request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>number</strong> – the number to format</p></li>
+<li><p><strong>format</strong> – the format to use</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the formatted percent number</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>unicode</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.format_scientific">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">format_scientific</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#format_scientific"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.format_scientific" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return value formatted in scientific notation for the locale in request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>number</strong> – the number to format</p></li>
+<li><p><strong>format</strong> – the format to use</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the formatted percent number</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>unicode</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="gettext-functions">
+<h3>Gettext Functions<a class="headerlink" href="#gettext-functions" title="Permalink to this headline">¶</a></h3>
+<dl class="py function">
+<dt id="flask_babel.gettext">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">gettext</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#gettext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.gettext" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.ngettext">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">ngettext</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#ngettext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.ngettext" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.pgettext">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">pgettext</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#pgettext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.pgettext" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.npgettext">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">npgettext</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#npgettext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.npgettext" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.lazy_gettext">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">lazy_gettext</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#lazy_gettext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.lazy_gettext" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.lazy_pgettext">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">lazy_pgettext</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#lazy_pgettext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.lazy_pgettext" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="low-level-api">
+<h3>Low-Level API<a class="headerlink" href="#low-level-api" title="Permalink to this headline">¶</a></h3>
+<dl class="py function">
+<dt id="flask_babel.refresh">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">refresh</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#refresh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.refresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refreshes the cached timezones and locale information.  This can
+be used to switch a translation between a request and if you want
+the changes to take place immediately, not just with the next request:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">user</span><span class="o">.</span><span class="n">timezone</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;timezone&#39;</span><span class="p">]</span>
+<span class="n">user</span><span class="o">.</span><span class="n">locale</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;locale&#39;</span><span class="p">]</span>
+<span class="n">refresh</span><span class="p">()</span>
+<span class="n">flash</span><span class="p">(</span><span class="n">gettext</span><span class="p">(</span><span class="s1">&#39;Language was changed&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Without that refresh, the <code class="xref py py-func docutils literal notranslate"><span class="pre">flash()</span></code> function would probably
+return English text and a now German page.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="flask_babel.force_locale">
+<code class="sig-prename descclassname">flask_babel.</code><code class="sig-name descname">force_locale</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">locale</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flask_babel.html#force_locale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flask_babel.force_locale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Temporarily overrides the currently selected locale.</p>
+<p>Sometimes it is useful to switch the current locale to different one, do
+some tasks and then revert back to the original one. For example, if the
+user uses German on the web site, but you want to send them an email in
+English, you can use this function as a context manager:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">force_locale</span><span class="p">(</span><span class="s1">&#39;en_US&#39;</span><span class="p">):</span>
+    <span class="n">send_email</span><span class="p">(</span><span class="n">gettext</span><span class="p">(</span><span class="s1">&#39;Hello!&#39;</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>locale</strong> – The locale to temporary switch to (ex: ‘en_US’).</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+  <span id="sidebar-top"></span>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  
+    
+  
+
+  <h3>Contents</h3>
+  <ul>
+<li><a class="reference internal" href="#">Flask-Babel</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#configuration">Configuration</a></li>
+<li><a class="reference internal" href="#formatting-dates">Formatting Dates</a></li>
+<li><a class="reference internal" href="#formatting-numbers">Formatting Numbers</a></li>
+<li><a class="reference internal" href="#using-translations">Using Translations</a></li>
+<li><a class="reference internal" href="#translating-applications">Translating Applications</a></li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li><a class="reference internal" href="#api">API</a><ul>
+<li><a class="reference internal" href="#id1">Configuration</a></li>
+<li><a class="reference internal" href="#context-functions">Context Functions</a></li>
+<li><a class="reference internal" href="#datetime-functions">Datetime Functions</a></li>
+<li><a class="reference internal" href="#number-functions">Number Functions</a></li>
+<li><a class="reference internal" href="#gettext-functions">Gettext Functions</a></li>
+<li><a class="reference internal" href="#low-level-api">Low-Level API</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Navigation</h3>
+<ul>
+  <li><a href="#">Overview</a>
+    
+  </li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Armin Ronacher.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.2.1.
+    </div>
+  <script src="_static/version_warning_offset.js"></script>
+
+  </body>
+</html>
