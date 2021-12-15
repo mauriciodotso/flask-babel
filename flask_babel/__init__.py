@@ -49,12 +49,13 @@ class Babel(object):
 
     def __init__(self, app=None, default_locale='en', default_timezone='UTC',
                  default_domain='messages', date_formats=None,
-                 configure_jinja=True):
+                 configure_jinja=True, resolve_likely_subtags=True):
         self._default_locale = default_locale
         self._default_timezone = default_timezone
         self._default_domain = default_domain
         self._date_formats = date_formats
         self._configure_jinja = configure_jinja
+        self._resolve_likely_subtags = resolve_likely_subtags
         self.app = app
         self.locale_selector_func = None
         self.timezone_selector_func = None
@@ -75,6 +76,8 @@ class Babel(object):
         app.config.setdefault('BABEL_DEFAULT_LOCALE', self._default_locale)
         app.config.setdefault('BABEL_DEFAULT_TIMEZONE', self._default_timezone)
         app.config.setdefault('BABEL_DOMAIN', self._default_domain)
+        app.config.setdefault('BABEL_RESOLVE_LIKELY_SUBTAGS', self._resolve_likely_subtags)
+
         if self._date_formats is None:
             self._date_formats = self.default_date_formats.copy()
 
@@ -199,6 +202,11 @@ class Babel(object):
             else:
                 yield os.path.join(self.app.root_path, path)
 
+    @property
+    def resolve_likely_subtags(self):
+        """Should babel try to resolve subtags for us
+        """
+        return self.app.config['BABEL_RESOLVE_LIKELY_SUBTAGS']
 
 def get_translations():
     """Returns the correct gettext translations that should be used for
@@ -227,7 +235,7 @@ def get_locale():
             if rv is None:
                 locale = babel.default_locale
             else:
-                locale = Locale.parse(rv)
+                locale = Locale.parse(rv, resolve_likely_subtags=babel.resolve_likely_subtags)
         ctx.babel_locale = locale
     return locale
 
